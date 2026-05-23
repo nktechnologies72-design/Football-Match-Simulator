@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Football Match Simulator</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #071a33;
+      --surface: #112447;
+      --surface-strong: #162f57;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #60a5fa;
+      --accent-strong: #2563eb;
+      --goal: #10b981;
+      --yellow: #facc15;
+      --red: #ef4444;
+      --penalty: #7c3aed;
+      --freekick: #06b6d4;
+      --corner: #60a5fa;
+      --owngoal: #fb923c;
+      --shadow: rgba(0, 0, 0, 0.24);
+    }
+
+    body.light-theme {
+      color-scheme: light;
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-strong: #e2e8f0;
+      --text: #0f172a;
+      --muted: #475569;
+      --accent: #2563eb;
+      --accent-strong: #1d4ed8;
+      --goal: #16a34a;
+      --yellow: #eab308;
+      --red: #dc2626;
+      --penalty: #6d28d9;
+      --freekick: #0ea5e9;
+      --corner: #2563eb;
+      --owngoal: #f97316;
+      --shadow: rgba(15, 23, 42, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; font-family: Inter, system-ui, sans-serif; background: radial-gradient(circle at top, rgba(96,165,250,0.18), transparent 30%), var(--bg); color: var(--text); }
+    .page { max-width: 1080px; margin: 0 auto; padding: 2rem 1rem 3rem; }
+    .card { background: var(--surface); border: 1px solid rgba(148, 163, 184, 0.12); border-radius: 26px; box-shadow: 0 24px 80px var(--shadow); padding: 1.5rem; }
+    h1 { margin: 0 0 .6rem; font-size: clamp(2rem, 3vw, 3rem); }
+    p { margin: 0 0 1.4rem; color: var(--muted); line-height: 1.6; }
+    .top-bar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; align-items: center; margin-bottom: 1.5rem; }
+    .theme-toggle { border: 1px solid rgba(148,163,184,.18); border-radius: 999px; background: var(--surface-strong); color: var(--text); padding: .75rem 1rem; cursor: pointer; }
+    .theme-toggle:hover { background: rgba(255,255,255,.08); }
+    .grid { display: grid; gap: 1rem; }
+    .form-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+    select, button { width: 100%; border-radius: 16px; border: 1px solid transparent; font-size: 1rem; padding: 1rem 1.1rem; }
+    select { background: rgba(255,255,255,0.05); color: var(--text); border-color: rgba(148,163,184,0.12); }
+    button.primary { background: linear-gradient(135deg, var(--accent), var(--accent-strong)); color: white; box-shadow: 0 16px 26px rgba(37,99,235,0.24); border: none; cursor: pointer; transition: transform .18s ease, filter .18s ease; }
+    button.primary:hover { transform: translateY(-1px); filter: brightness(1.06); }
+    .actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .85rem; }
+    .actions button.secondary { background: rgba(255,255,255,0.05); color: var(--text); border: 1px solid rgba(148,163,184,0.14); }
+    .actions button.secondary:hover { background: rgba(255,255,255,0.1); }
+    .summary-card { display: grid; gap: .85rem; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); padding: 1.25rem; }
+    .team-card { display: flex; align-items: center; gap: .85rem; padding: 1rem; border-radius: 18px; background: rgba(255,255,255,0.05); border: 1px solid rgba(148,163,184,0.1); }
+    .team-logo { width: 3rem; height: 3rem; border-radius: 16px; display: grid; place-items: center; font-size: 1.5rem; background: rgba(255,255,255,0.12); }
+    .team-meta { color: var(--muted); font-size: .92rem; margin-top: .3rem; }
+    .match-meta { display: flex; flex-direction: column; justify-content: center; gap: .5rem; }
+    .match-title { font-weight: 700; font-size: 1.1rem; }
+    .badge-row { display: flex; flex-wrap: wrap; gap: .45rem; }
+    .badge { display: inline-flex; align-items: center; justify-content: center; padding: .4rem .7rem; border-radius: 999px; background: rgba(255,255,255,.08); color: var(--text); font-size: .83rem; text-transform: uppercase; letter-spacing: .04em; }
+    .live-panel { display: grid; gap: 1rem; grid-template-columns: 1fr 1fr; margin-top: 1rem; }
+    .scoreboard { border-radius: 22px; background: rgba(255,255,255,0.06); padding: 1rem 1.15rem; display: flex; align-items: center; justify-content: space-between; gap: .75rem; min-height: 88px; }
+    .scoreboard strong { font-size: 2rem; line-height: 1; }
+    .scoreboard span { display: block; font-size: .95rem; color: var(--muted); }
+    .live-clock { font-weight: 700; font-size: 1.1rem; color: var(--accent); }
+    .status-box { padding: 1rem; border-radius: 18px; background: rgba(255,255,255,0.05); border: 1px solid rgba(148,163,184,0.12); }
+    .status-box p { margin: 0; }
+    .feed { margin-top: 1.2rem; padding: 1rem; border-radius: 24px; background: rgba(255,255,255,0.05); border: 1px solid rgba(148,163,184,0.12); max-height: 460px; overflow-y: auto; }
+    .event { padding: .9rem 1rem; border-radius: 16px; margin-bottom: .75rem; background: rgba(255,255,255,0.04); color: var(--text); border-left: 4px solid transparent; }
+    .event.goal { border-color: var(--goal); background: rgba(16,185,129,0.12); }
+    .event.yellow { border-color: var(--yellow); background: rgba(250,204,21,0.12); }
+    .event.red { border-color: var(--red); background: rgba(239,68,68,0.12); }
+    .event.penalty { border-color: var(--penalty); background: rgba(124,58,237,0.12); }
+    .event.freekick { border-color: var(--freekick); background: rgba(6,182,212,0.12); }
+    .event.corner { border-color: var(--corner); background: rgba(96,165,250,0.12); }
+    .event.owngoal { border-color: var(--owngoal); background: rgba(249,115,22,0.12); }
+    .event.muted { opacity: .72; }
+    .note { color: var(--muted); margin-top: 1rem; }
+    .alert { padding: 1rem; border-radius: 16px; background: rgba(239,68,68,0.12); color: #fee2e2; border: 1px solid rgba(239,68,68,0.25); }
+    @media (max-width: 720px) {
+      .actions { grid-template-columns: 1fr; }
+      .live-panel { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="top-bar">
+      <div>
+        <h1>Football Match Simulator</h1>
+        <p>Live animation, team logos, sportier match cards, and a light/dark theme switch.</p>
+      </div>
+      <button id="themeToggle" class="theme-toggle">Switch Theme</button>
+    </div>
+
+    <div class="card grid form-grid">
+      <div class="control">
+        <label for="homeTeam">Home Team</label>
+        <select id="homeTeam"></select>
+      </div>
+      <div class="control">
+        <label for="awayTeam">Away Team</label>
+        <select id="awayTeam"></select>
+      </div>
+      <div class="control">
+        <label for="matchMode">Match Mode</label>
+        <select id="matchMode">
+          <option value="normal">Normal</option>
+          <option value="attacking">Attacking</option>
+          <option value="defensive">Defensive</option>
+          <option value="derby">Derby</option>
+        </select>
+      </div>
+      <div class="control">
+        <label for="matchFormat">Match Format</label>
+        <select id="matchFormat">
+          <option value="league">League</option>
+          <option value="knockout">Knockout</option>
+        </select>
+      </div>
+      <div class="control">
+        <label for="weather">Weather</label>
+        <select id="weather">
+          <option value="clear">Clear</option>
+          <option value="rain">Rain</option>
+          <option value="windy">Windy</option>
+          <option value="storm">Storm</option>
+        </select>
+      </div>
+      <div class="control">
+        <label for="rivalry">Rivalry</label>
+        <select id="rivalry">
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+        </select>
+      </div>
+      <div class="control">
+        <label for="matchPace">Match Pace</label>
+        <select id="matchPace">
+          <option value="balanced">Balanced</option>
+          <option value="fast">Fast</option>
+          <option value="slow">Slow</option>
+        </select>
+      </div>
+      <div class="control">
+        <label for="referee">Referee</label>
+        <select id="referee">
+          <option value="standard">Standard</option>
+          <option value="lenient">Lenient</option>
+          <option value="strict">Strict</option>
+        </select>
+      </div>
+      <div class="control">
+        <label>&nbsp;</label>
+        <button id="simulateBtn" class="primary">Simulate Live Match</button>
+      </div>
+      <div class="control">
+        <label>&nbsp;</label>
+        <button id="randomizeBtn" class="secondary">Randomize Match</button>
+      </div>
+      <div class="control">
+        <label>&nbsp;</label>
+        <button id="instantBtn" class="secondary">Instant Result</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:1rem; padding:1.25rem;">
+      <div class="actions">
+        <button id="clearBtn" class="secondary">Clear Log</button>
+        <button id="copyBtn" class="secondary">Copy Log</button>
+        <button id="stopBtn" class="secondary">Stop Animation</button>
+      </div>
+
+      <div id="summary" class="summary-card" aria-live="polite">
+        <div class="team-card"><div class="team-logo">🏟️</div><div><strong>Pick two different teams and click Simulate Live Match.</strong><div class="team-meta">Live timeline will animate as the game unfolds.</div></div></div>
+      </div>
+
+      <div class="live-panel">
+        <div class="scoreboard" id="scoreboard"><span>Live Score</span><strong>0 - 0</strong><span class="live-clock" id="liveClock">0'</span></div>
+        <div class="status-box" id="statusBox"><p>Awaiting kickoff...</p></div>
+      </div>
+
+      <div class="feed" id="eventList"></div>
+    </div>
+
+    <p class="note">New: light mode, animated minute-by-minute match flow, and visually distinct event cards for goals, cards, penalties, corners, and own goals.</p>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const teams = [
+        { name: 'Rovers FC', logo: '🟦', attack: 70, defense: 65, stamina: 68 },
+        { name: 'United Tigers', logo: '🟧', attack: 66, defense: 70, stamina: 72 },
+        { name: 'City Eagles', logo: '🟪', attack: 75, defense: 60, stamina: 65 },
+        { name: 'River Plate', logo: '🟩', attack: 62, defense: 68, stamina: 70 },
+        { name: 'Mountain Wolves', logo: '🟫', attack: 69, defense: 63, stamina: 74 },
+        { name: 'Coastal Kings', logo: '🟨', attack: 72, defense: 61, stamina: 66 },
+        { name: 'Steel Stallions', logo: '⬛', attack: 64, defense: 74, stamina: 69 },
+        { name: 'Desert Falcons', logo: '🟣', attack: 67, defense: 62, stamina: 73 },
+        { name: 'Phoenix United', logo: '🔥', attack: 74, defense: 64, stamina: 67 },
+        { name: 'Galaxy Strikers', logo: '🌌', attack: 68, defense: 66, stamina: 71 }
+      ];
+
+      const matchModes = {
+        normal: { attackBonus: 0, defenseBonus: 0, goalChance: 0.08, foulBonus: 0 },
+        attacking: { attackBonus: 5, defenseBonus: -2, goalChance: 0.11, foulBonus: 0.01 },
+        defensive: { attackBonus: -2, defenseBonus: 5, goalChance: 0.06, foulBonus: -0.01 },
+        derby: { attackBonus: 3, defenseBonus: 0, goalChance: 0.09, foulBonus: 0.02 }
+      };
+
+      const matchPaces = {
+        balanced: { goalModifier: 0, eventModifier: 0 },
+        fast: { goalModifier: 0.02, eventModifier: 0.02 },
+        slow: { goalModifier: -0.015, eventModifier: -0.01 }
+      };
+
+      const refereeTypes = {
+        standard: { foulBias: 0, cardBias: 0 },
+        lenient: { foulBias: -0.01, cardBias: -0.1 },
+        strict: { foulBias: 0.02, cardBias: 0.1 }
+      };
+
+      const weatherEffects = {
+        clear: { thresholdShift: 0, eventShift: 0 },
+        rain: { thresholdShift: 4, eventShift: 0.01 },
+        windy: { thresholdShift: 6, eventShift: 0.02 },
+        storm: { thresholdShift: 10, eventShift: 0.03 }
+      };
+
+      const rivalryLevels = {
+        low: { intensity: 0, foulShift: 0 },
+        medium: { intensity: 2, foulShift: 0.015 },
+        high: { intensity: 4, foulShift: 0.03 }
+      };
+
+      const homeSelect = document.getElementById('homeTeam');
+      const awaySelect = document.getElementById('awayTeam');
+      const summaryDiv = document.getElementById('summary');
+      const eventList = document.getElementById('eventList');
+      const clearBtn = document.getElementById('clearBtn');
+      const copyBtn = document.getElementById('copyBtn');
+      const stopBtn = document.getElementById('stopBtn');
+      const randomizeBtn = document.getElementById('randomizeBtn');
+      const instantBtn = document.getElementById('instantBtn');
+      const scoreboard = document.getElementById('scoreboard');
+      const statusBox = document.getElementById('statusBox');
+      const themeToggle = document.getElementById('themeToggle');
+      const simulateBtn = document.getElementById('simulateBtn');
+      const modeSelect = document.getElementById('matchMode');
+      const formatSelect = document.getElementById('matchFormat');
+      const weatherSelect = document.getElementById('weather');
+      const rivalrySelect = document.getElementById('rivalry');
+      const paceSelect = document.getElementById('matchPace');
+      const refereeSelect = document.getElementById('referee');
+
+      let animationInterval = null;
+
+      function buildOptions() {
+        homeSelect.innerHTML = '';
+        awaySelect.innerHTML = '';
+        teams.forEach((team, index) => {
+          const optionText = `${team.logo} ${team.name} · ATK ${team.attack} · DEF ${team.defense} · STA ${team.stamina}`;
+          const optionHome = document.createElement('option');
+          optionHome.value = index;
+          optionHome.textContent = optionText;
+          homeSelect.appendChild(optionHome);
+
+          const optionAway = document.createElement('option');
+          optionAway.value = index;
+          optionAway.textContent = optionText;
+          awaySelect.appendChild(optionAway);
+        });
+        awaySelect.selectedIndex = teams.length > 1 ? 1 : 0;
+      }
+
+      function randomInt(max) {
+        return Math.floor(Math.random() * max);
+      }
+
+      function getTrendClass(text) {
+        const lower = text.toLowerCase();
+        if (lower.includes('red card')) return 'red';
+        if (lower.includes('yellow card')) return 'yellow';
+        if (lower.includes('penalty')) return 'penalty';
+        if (lower.includes('free-kick') || lower.includes('free kick')) return 'freekick';
+        if (lower.includes('corner')) return 'corner';
+        if (lower.includes('og') || lower.includes('own net')) return 'owngoal';
+        if (lower.includes('goal') || lower.includes('scores') || lower.includes('converts') || lower.includes('spectacular') || lower.includes('stunning')) return 'goal';
+        return '';
+      }
+
+      function buildPenaltyShootout(home, away) {
+        let homePens = 0;
+        let awayPens = 0;
+        const events = [];
+        for (let kick = 1; kick <= 5; kick++) {
+          const homeScore = Math.random() < 0.78;
+          const awayScore = Math.random() < 0.78;
+          if (homeScore) homePens += 1;
+          if (awayScore) awayPens += 1;
+          events.push(`Penalty ${kick}: ${homeScore ? '✔️' : '❌'} ${home.name} vs ${awayScore ? '✔️' : '❌'} ${away.name}`);
+        }
+        while (homePens === awayPens) {
+          const homeScore = Math.random() < 0.76;
+          const awayScore = Math.random() < 0.76;
+          if (homeScore) homePens += 1;
+          if (awayScore) awayPens += 1;
+          events.push(`Sudden death: ${homeScore ? '✔️' : '❌'} ${home.name} vs ${awayScore ? '✔️' : '❌'} ${away.name}`);
+        }
+        return { homePens, awayPens, winner: homePens > awayPens ? home.name : away.name, events };
+      }
+
+      function buildMatchTimeline(homeTeam, awayTeam, modeKey, weatherKey, rivalryKey, paceKey, refereeKey, formatKey) {
+        const mode = matchModes[modeKey];
+        const weather = weatherEffects[weatherKey];
+        const rivalry = rivalryLevels[rivalryKey];
+        const pace = matchPaces[paceKey];
+        const referee = refereeTypes[refereeKey];
+        const home = { ...homeTeam, goals: 0, shots: 0, yellow: 0, red: 0, injuries: 0, corners: 0, fouls: 0, penalties: 0, saves: 0, ownGoals: 0, freekicks: 0, substitutions: 0 };
+        const away = { ...awayTeam, goals: 0, shots: 0, yellow: 0, red: 0, injuries: 0, corners: 0, fouls: 0, penalties: 0, saves: 0, ownGoals: 0, freekicks: 0, substitutions: 0 };
+        const timeline = [];
+        let homeSubsLeft = 3;
+        let awaySubsLeft = 3;
+
+        for (let minute = 1; minute <= 90; minute++) {
+          home.stamina = Math.max(40, home.stamina - 0.08);
+          away.stamina = Math.max(40, away.stamina - 0.08);
+          const minuteEvents = [];
+
+          [[home, away], [away, home]].forEach(([attacker, defender]) => {
+            const attackRoll = attacker.attack + randomInt(31) + mode.attackBonus + (attacker === home ? 3 : 0);
+            const defenseRoll = defender.defense + randomInt(31) + mode.defenseBonus;
+            const staminaBonus = attacker.stamina - defender.stamina;
+            const threshold = 40 + weather.thresholdShift;
+            const dramaMultiplier = 1 + rivalry.intensity * 0.01 + weather.eventShift;
+            const goalChance = (mode.goalChance + pace.goalModifier) * dramaMultiplier;
+            const cornerChance = 0.085 + weather.eventShift + pace.eventModifier;
+            const foulChance = 0.045 + rivalry.foulShift + referee.foulBias;
+            const ownGoalChance = 0.001 + weather.eventShift;
+            const freekickDirectChance = 0.06 + (attacker.attack - defender.defense) * 0.0008;
+            const varChance = 0.025 + rivalry.intensity * 0.005;
+            const cardPenalty = referee.cardBias;
+
+            if (attackRoll + staminaBonus > defenseRoll + threshold) {
+              if (Math.random() < goalChance) {
+                attacker.goals += 1;
+                attacker.shots += 2;
+                const goalType = Math.random();
+                if (goalType < 0.1) minuteEvents.push(`What a strike! ${attacker.name} curls one into the top corner.`);
+                else if (goalType < 0.22) minuteEvents.push(`${attacker.name} heads the ball into the net from a corner!`);
+                else if (goalType < 0.32) minuteEvents.push(`${attacker.name} converts a brilliant counter-attack.`);
+                else minuteEvents.push(`${attacker.name} scores!`);
+
+                if (Math.random() < varChance) {
+                  if (Math.random() < 0.4) { attacker.goals -= 1; minuteEvents.push('VAR review: Goal disallowed!'); }
+                  else minuteEvents.push('VAR review: Goal confirmed.');
+                }
+              } else if (Math.random() < 0.45) {
+                attacker.shots += 1;
+                minuteEvents.push(`${attacker.name} drags a shot wide.`);
+              }
+            } else if (Math.random() < 0.07 + pace.eventModifier) {
+              attacker.shots += 1;
+              minuteEvents.push(`${attacker.name} forces a good save from the goalkeeper.`);
+            }
+
+            if (Math.random() < cornerChance) {
+              attacker.corners += 1;
+              minuteEvents.push(`Corner for ${attacker.name}.`);
+            }
+
+            if (Math.random() < foulChance) {
+              defender.fouls += 1;
+              const cardRoll = Math.random() + cardPenalty;
+              if (cardRoll < 0.4) { defender.yellow += 1; minuteEvents.push(`Yellow card for ${defender.name}.`); }
+              else if (cardRoll < 0.7) { defender.red += 1; minuteEvents.push(`Red card for ${defender.name}.`); }
+              else { defender.injuries += 1; minuteEvents.push(`Injury stoppage for ${defender.name}.`); }
+
+              if (Math.random() < 0.22) {
+                attacker.penalties += 1;
+                minuteEvents.push(`Penalty awarded to ${attacker.name}!`);
+                if (Math.random() < 0.78) {
+                  attacker.goals += 1;
+                  minuteEvents.push(`${attacker.name} converts the spot-kick!`);
+                  if (Math.random() < varChance && Math.random() < 0.3) {
+                    attacker.goals -= 1;
+                    minuteEvents.push('VAR overturns the penalty goal!');
+                  }
+                } else {
+                  defender.saves += 1;
+                  minuteEvents.push(`${defender.name} makes a great penalty save!`);
+                }
+              } else {
+                attacker.freekicks += 1;
+                minuteEvents.push(`Free-kick awarded to ${attacker.name}.`);
+                if (Math.random() < freekickDirectChance) {
+                  attacker.goals += 1;
+                  minuteEvents.push(`💥 Spectacular free-kick from ${attacker.name}!`);
+                }
+              }
+            }
+
+            if (Math.random() < ownGoalChance && minute > 10) {
+              defender.goals += 1;
+              defender.ownGoals += 1;
+              minuteEvents.push(`OG! ${defender.name} puts it into their own net.`);
+            }
+
+            if (Math.random() < 0.06 && minute > 80 && attacker.goals !== defender.goals) {
+              minuteEvents.push('Late drama erupts in the stadium.');
+            }
+          });
+
+          if (minute === 60) {
+            if (home.stamina < 60 && homeSubsLeft > 0) { home.substitutions += 1; homeSubsLeft--; home.stamina = Math.min(90, home.stamina + 12); minuteEvents.push(`${home.name} make a fresh-legs substitution.`); }
+            if (away.stamina < 60 && awaySubsLeft > 0) { away.substitutions += 1; awaySubsLeft--; away.stamina = Math.min(90, away.stamina + 12); minuteEvents.push(`${away.name} make a tactical change.`); }
+          }
+
+          timeline.push({
+            minute,
+            events: minuteEvents,
+            homeGoals: home.goals,
+            awayGoals: away.goals
+          });
+        }
+
+        let shootout = null;
+        if (formatKey === 'knockout' && home.goals === away.goals) {
+          timeline.push({
+            minute: 90,
+            events: ['Regulation time ends level. Extra time is now underway.'],
+            homeGoals: home.goals,
+            awayGoals: away.goals
+          });
+
+          for (let minute = 91; minute <= 120; minute++) {
+            home.stamina = Math.max(30, home.stamina - 0.09);
+            away.stamina = Math.max(30, away.stamina - 0.09);
+            const minuteEvents = [];
+
+            [[home, away], [away, home]].forEach(([attacker, defender]) => {
+              const attackRoll = attacker.attack + randomInt(31) + mode.attackBonus + (attacker === home ? 3 : 0);
+              const defenseRoll = defender.defense + randomInt(31) + mode.defenseBonus;
+              const staminaBonus = attacker.stamina - defender.stamina;
+              const threshold = 40 + weather.thresholdShift;
+              const dramaMultiplier = 1 + rivalry.intensity * 0.015 + weather.eventShift + 0.03;
+              const goalChance = Math.max(0.04, (mode.goalChance + pace.goalModifier + 0.01) * dramaMultiplier);
+              const cornerChance = 0.09 + weather.eventShift + pace.eventModifier;
+              const foulChance = 0.05 + rivalry.foulShift + referee.foulBias;
+              const ownGoalChance = 0.002 + weather.eventShift;
+              const freekickDirectChance = 0.07 + (attacker.attack - defender.defense) * 0.0009;
+              const varChance = 0.03 + rivalry.intensity * 0.005;
+              const cardPenalty = referee.cardBias;
+
+              if (attackRoll + staminaBonus > defenseRoll + threshold) {
+                if (Math.random() < goalChance) {
+                  attacker.goals += 1;
+                  attacker.shots += 2;
+                  const goalType = Math.random();
+                  if (goalType < 0.08) minuteEvents.push(`Extra time thunderbolt! ${attacker.name} finds the net.`);
+                  else if (goalType < 0.22) minuteEvents.push(`${attacker.name} scores in extra time after a brilliant move.`);
+                  else minuteEvents.push(`${attacker.name} nets an extra-time goal!`);
+
+                  if (Math.random() < varChance) {
+                    if (Math.random() < 0.35) { attacker.goals -= 1; minuteEvents.push('VAR review: Extra-time goal disallowed!'); }
+                    else minuteEvents.push('VAR review: Goal checks out.');
+                  }
+                } else if (Math.random() < 0.48) {
+                  attacker.shots += 1;
+                  minuteEvents.push(`${attacker.name} forces a full-stretch save in extra time.`);
+                }
+              }
+
+              if (Math.random() < cornerChance) {
+                attacker.corners += 1;
+                minuteEvents.push(`Corner for ${attacker.name}.`);
+              }
+
+              if (Math.random() < foulChance) {
+                defender.fouls += 1;
+                const cardRoll = Math.random() + cardPenalty;
+                if (cardRoll < 0.4) { defender.yellow += 1; minuteEvents.push(`Yellow card for ${defender.name}.`); }
+                else if (cardRoll < 0.7) { defender.red += 1; minuteEvents.push(`Red card for ${defender.name}.`); }
+                else { defender.injuries += 1; minuteEvents.push(`Injury stoppage for ${defender.name}.`); }
+              }
+
+              if (Math.random() < ownGoalChance && minute > 100) {
+                defender.goals += 1;
+                defender.ownGoals += 1;
+                minuteEvents.push(`Heartbreak own goal! ${defender.name} turns it into their own net.`);
+              }
+            });
+
+            timeline.push({
+              minute,
+              events: minuteEvents,
+              homeGoals: home.goals,
+              awayGoals: away.goals
+            });
+          }
+
+          if (home.goals === away.goals) {
+            shootout = buildPenaltyShootout(home, away);
+            timeline.push({
+              minute: 120,
+              events: [`Penalty shootout begins. ${shootout.winner} wins ${shootout.homePens} - ${shootout.awayPens}`].concat(shootout.events),
+              homeGoals: home.goals,
+              awayGoals: away.goals,
+              penalty: true
+            });
+          }
+        }
+
+        return {
+          home,
+          away,
+          timeline,
+          shootout,
+          stats: {
+            possession: `${Math.max(28, Math.min(72, Math.round((home.attack + home.stamina + 10) / (home.attack + home.stamina + away.attack + away.stamina + 20) * 100)))}% - ${100 - Math.max(28, Math.min(72, Math.round((home.attack + home.stamina + 10) / (home.attack + home.stamina + away.attack + away.stamina + 20) * 100)))}%`,
+            shots: `${home.shots} - ${away.shots}`,
+            corners: `${home.corners} - ${away.corners}`,
+            penalties: `${home.penalties} - ${away.penalties}`,
+            freekicks: `${home.freekicks} - ${away.freekicks}`,
+            substitutions: `${home.substitutions} - ${away.substitutions}`,
+            yellow: `${home.yellow} - ${away.yellow}`,
+            red: `${home.red} - ${away.red}`,
+            fouls: `${home.fouls} - ${away.fouls}`,
+            injuries: `${home.injuries} - ${away.injuries}`,
+            saves: `${home.saves} - ${away.saves}`
+          }
+        };
+      }
+
+      function renderPreview(homeTeam, awayTeam, modeKey, weatherKey, rivalryKey, paceKey, refereeKey, formatKey) {
+        summaryDiv.innerHTML = `
+          <div class="team-card"><div class="team-logo">${homeTeam.logo}</div><div><strong>${homeTeam.name}</strong><div class="team-meta">ATK ${homeTeam.attack} · DEF ${homeTeam.defense} · STA ${homeTeam.stamina}</div></div></div>
+          <div class="match-meta"><div class="match-title">${homeTeam.name} vs ${awayTeam.name}</div><div class="badge-row"><span class="badge">${modeKey}</span><span class="badge">${formatKey}</span><span class="badge">${weatherKey}</span><span class="badge">${rivalryKey}</span><span class="badge">${paceKey}</span><span class="badge">${refereeKey}</span></div></div>
+          <div class="team-card"><div class="team-logo">${awayTeam.logo}</div><div><strong>${awayTeam.name}</strong><div class="team-meta">ATK ${awayTeam.attack} · DEF ${awayTeam.defense} · STA ${awayTeam.stamina}</div></div></div>
+        `;
+      }
+
+      function determineMVP(matchData) {
+        if (matchData.home.goals !== matchData.away.goals) {
+          return matchData.home.goals > matchData.away.goals ? matchData.home.name : matchData.away.name;
+        }
+        if (matchData.home.shots !== matchData.away.shots) {
+          return matchData.home.shots > matchData.away.shots ? matchData.home.name : matchData.away.name;
+        }
+        return Math.random() > 0.5 ? matchData.home.name : matchData.away.name;
+      }
+
+      function renderEvent(message) {
+        const eventEl = document.createElement('div');
+        eventEl.className = 'event';
+        const trend = getTrendClass(message);
+        if (trend) eventEl.classList.add(trend);
+        eventEl.textContent = message;
+        eventList.prepend(eventEl);
+        if (eventList.children.length > 120) eventList.removeChild(eventList.lastChild);
+      }
+
+      function updateScoreboard(homeGoals, awayGoals, homeName, awayName, clockText) {
+        scoreboard.innerHTML = `<span>${homeName}</span><strong>${homeGoals} - ${awayGoals}</strong><span class="live-clock">${clockText}</span><span>${awayName}</span>`;
+      }
+
+      function animateMatch(matchData) {
+        let idx = 0;
+        eventList.innerHTML = '';
+        statusBox.innerHTML = '<p>Match has kicked off. Watch the live feed appear.</p>';
+        updateScoreboard(0, 0, matchData.home.name, matchData.away.name, "0'");
+
+        if (animationInterval) clearInterval(animationInterval);
+        animationInterval = setInterval(() => {
+          if (idx >= matchData.timeline.length) {
+            clearInterval(animationInterval);
+            statusBox.innerHTML = `<p>Full-time! ${matchData.home.name} ${matchData.home.goals} - ${matchData.away.goals} ${matchData.away.name}</p>`;
+            renderFinalSummary(matchData);
+            return;
+          }
+
+          const frame = matchData.timeline[idx];
+          const clockText = `${frame.minute}'`;
+          updateScoreboard(frame.homeGoals, frame.awayGoals, matchData.home.name, matchData.away.name, clockText);
+
+          if (frame.events.length === 0) {
+            renderEvent(`${frame.minute}' - Tight midfield battle keeps the crowd on edge.`);
+          }
+
+          frame.events.forEach(evt => renderEvent(`${frame.minute}' - ${evt}`));
+          idx += 1;
+        }, 180);
+      }
+
+      function renderFinalSummary(matchData) {
+        const s = matchData.stats;
+        const mvp = determineMVP(matchData);
+        const penaltySummary = matchData.shootout ? ` • Penalties ${matchData.shootout.homePens}-${matchData.shootout.awayPens} • Winner ${matchData.shootout.winner}` : '';
+        summaryDiv.innerHTML = `
+          <div class="team-card"><div class="team-logo">${matchData.home.logo}</div><div><strong>${matchData.home.name}</strong><div class="team-meta">ATK ${matchData.home.attack} · DEF ${matchData.home.defense} · STA ${Math.round(matchData.home.stamina)}</div></div></div>
+          <div class="match-meta"><div class="match-title">Final Score: ${matchData.home.goals} - ${matchData.away.goals}${matchData.shootout ? ' (after penalties)' : ''}</div><div class="badge-row"><span class="badge">${s.possession}</span><span class="badge">Shots ${s.shots}</span><span class="badge">MVP ${mvp}</span></div></div>
+          <div class="team-card"><div class="team-logo">${matchData.away.logo}</div><div><strong>${matchData.away.name}</strong><div class="team-meta">ATK ${matchData.away.attack} · DEF ${matchData.away.defense} · STA ${Math.round(matchData.away.stamina)}</div></div></div>
+          <div class="status-box"><p>Stats • Corners ${s.corners} • Pens ${s.penalties} • FK ${s.freekicks} • Subs ${s.substitutions} • Y/R ${s.yellow}/${s.red} • Injuries ${s.injuries}${penaltySummary}</p></div>
+        `;
+      }
+
+      function stopAnimation() {
+        if (animationInterval) {
+          clearInterval(animationInterval);
+          animationInterval = null;
+          statusBox.innerHTML = '<p>Animation stopped. You can restart with Simulate Live Match.</p>';
+        }
+      }
+
+      function describeMatch() {
+        const homeIndex = Number(homeSelect.value);
+        const awayIndex = Number(awaySelect.value);
+        const modeKey = modeSelect.value;
+        const formatKey = formatSelect.value;
+        const weatherKey = weatherSelect.value;
+        const rivalryKey = rivalrySelect.value;
+        const paceKey = paceSelect.value;
+        const refereeKey = refereeSelect.value;
+
+        if (homeIndex === awayIndex) {
+          summaryDiv.innerHTML = '<div class="alert">Choose two different teams for home and away.</div>';
+          return null;
+        }
+
+        const homeTeam = teams[homeIndex];
+        const awayTeam = teams[awayIndex];
+        renderPreview(homeTeam, awayTeam, modeKey, weatherKey, rivalryKey, paceKey, refereeKey, formatKey);
+        return { homeTeam, awayTeam, modeKey, formatKey, weatherKey, rivalryKey, paceKey, refereeKey };
+      }
+
+      simulateBtn.addEventListener('click', () => {
+        const params = describeMatch();
+        if (!params) return;
+        const matchData = buildMatchTimeline(params.homeTeam, params.awayTeam, params.modeKey, params.weatherKey, params.rivalryKey, params.paceKey, params.refereeKey, params.formatKey);
+        animateMatch(matchData);
+      });
+
+      instantBtn.addEventListener('click', () => {
+        const params = describeMatch();
+        if (!params) return;
+        const matchData = buildMatchTimeline(params.homeTeam, params.awayTeam, params.modeKey, params.weatherKey, params.rivalryKey, params.paceKey, params.refereeKey, params.formatKey);
+        stopAnimation();
+        eventList.innerHTML = '';
+        const finalClock = matchData.shootout ? 'PSO' : 'FT';
+        updateScoreboard(matchData.home.goals, matchData.away.goals, matchData.home.name, matchData.away.name, finalClock);
+        statusBox.innerHTML = `<p>Instant result: ${matchData.home.name} ${matchData.home.goals} - ${matchData.away.goals} ${matchData.away.name}${matchData.shootout ? ' after penalties' : ''}</p>`;
+        if (matchData.shootout) {
+          matchData.shootout.events.forEach(evt => renderEvent(`PSO - ${evt}`));
+        }
+        renderFinalSummary(matchData);
+      });
+
+      clearBtn.addEventListener('click', () => {
+        if (animationInterval) clearInterval(animationInterval);
+        animationInterval = null;
+        summaryDiv.innerHTML = '<div class="team-card"><div class="team-logo">🏟️</div><div><strong>Preview cleared.</strong><div class="team-meta">Start a new live match or toggle the theme.</div></div></div>';
+        eventList.innerHTML = '';
+        scoreboard.innerHTML = '<span>Live Score</span><strong>0 - 0</strong><span class="live-clock">0&apos;</span><span></span>';
+        statusBox.innerHTML = '<p>Awaiting kickoff...</p>';
+      });
+
+      randomizeBtn.addEventListener('click', () => {
+        const homeIndex = randomInt(teams.length);
+        let awayIndex = randomInt(teams.length);
+        while (awayIndex === homeIndex) awayIndex = randomInt(teams.length);
+        homeSelect.value = homeIndex;
+        awaySelect.value = awayIndex;
+        modeSelect.value = ['normal', 'attacking', 'defensive', 'derby'][randomInt(4)];
+        weatherSelect.value = ['clear', 'rain', 'windy', 'storm'][randomInt(4)];
+        rivalrySelect.value = ['low', 'medium', 'high'][randomInt(3)];
+        paceSelect.value = ['balanced', 'fast', 'slow'][randomInt(3)];
+        refereeSelect.value = ['standard', 'lenient', 'strict'][randomInt(3)];
+        describeMatch();
+      });
+
+      copyBtn.addEventListener('click', async () => {
+        const text = [
+          ...Array.from(summaryDiv.querySelectorAll('div')).map(el => el.textContent),
+          ...Array.from(eventList.children).map(el => el.textContent),
+          statusBox.textContent
+        ].join('\n').trim();
+        try {
+          await navigator.clipboard.writeText(text);
+          copyBtn.textContent = 'Copied!';
+          setTimeout(() => { copyBtn.textContent = 'Copy Log'; }, 1200);
+        } catch (error) {
+          alert('Copy failed — clipboard access may be restricted by your browser.');
+        }
+      });
+
+      themeToggle.addEventListener('click', () => {
+        const isLight = document.body.classList.toggle('light-theme');
+        themeToggle.textContent = isLight ? 'Switch to Dark' : 'Switch to Light';
+      });
+
+      stopBtn.addEventListener('click', stopAnimation);
+      buildOptions();
+    });
+  </script>
+</body>
+</html>
